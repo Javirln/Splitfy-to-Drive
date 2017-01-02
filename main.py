@@ -43,11 +43,15 @@ class MainProcess(QMainWindow):
         else:
             self._pools_worker.set_session(self.session)
 
+            self.labelProgressStatus.setText("Cargando botes...")
+
             self._pools_worker.start()
 
     def pools_worker_callback(self, pools):
         self.open_pools = dict(pools)
         self.comboBoxSplitfy.addItems(pools)
+
+        self.labelProgressStatus.setText("Botes cargados")
 
         self.stop_progress_bar()
 
@@ -58,10 +62,12 @@ class MainProcess(QMainWindow):
         self.labelRecaudadoValue.setText(str(pool_info["money_total_amount"]) + '€')
         self.labelPersonasValue.setText(str(pool_info["people_total_amount"]))
 
+        self.labelProgressStatus.setText("Bote cargado")
+
         self.stop_progress_bar()
 
     def download_results_worker_callback(self, text):
-        print(text)
+        self.labelProgressStatus.setText(text)
 
     def handle_login(self):
         if self._login_worker.isRunning():
@@ -72,6 +78,7 @@ class MainProcess(QMainWindow):
             self._login_worker.set_session(self.session)
 
             self.init_progress_bar()
+            self.labelProgressStatus.setText("Conectando...")
 
             self._login_worker.start()
 
@@ -84,6 +91,8 @@ class MainProcess(QMainWindow):
             self._pool_fetcher_worker.set_pool_to_search(pool_to_search)
 
             self.init_progress_bar()
+
+            self.labelProgressStatus.setText("Cargando bote: {0}".format(pool_to_search))
 
             self._pool_fetcher_worker.start()
 
@@ -98,9 +107,11 @@ class MainProcess(QMainWindow):
 
             fileDiag = QFileDialog()
 
-            filename = QFileDialog.getSaveFileName(fileDiag, "Guardar archivo")
+            filename = QFileDialog.getSaveFileName(fileDiag, "Guardar archivo", self.comboBoxSplitfy.currentText())
 
             self._download_results_worker.set_filename(filename[0])
+
+            self.labelProgressStatus.setText("Descargando archivo...")
 
             self._download_results_worker.start()
 
@@ -252,12 +263,13 @@ class DownloadResultsWorker(QtCore.QThread):
         pool_results = self._session.get(
             'https://www.splitfy.com/evento/downloadCollaboratorsCSV/id/' + re.search('[0-9]+', self._from_url).group(
                 0))
-
-        with open(self._filename + ".csv", 'w') as file:
-            file.write(pool_results.text)
-            file.close()
-
-        self.data_sent.emit("terminado")
+        if self._filename != "":
+            with open(self._filename + ".csv", 'w') as file:
+                file.write(pool_results.text)
+                file.close()
+            self.data_sent.emit("Archivo descargado")
+        else:
+            self.data_sent.emit("El nombre del archivo no puede estar en blanco")
 
     def set_from_url(self, from_url):
         self._from_url = from_url
