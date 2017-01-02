@@ -1,12 +1,13 @@
-import re
-
 import requests
-from PyQt5 import QtCore
 from PyQt5 import QtWidgets
 from PyQt5 import uic
 from PyQt5.QtWidgets import QFileDialog
 from PyQt5.QtWidgets import QMainWindow
-from bs4 import BeautifulSoup
+
+from workers.DownloadResultsWorker import DownloadResultsWorker
+from workers.LoginWorker import LoginWorker
+from workers.PoolFetcherWorker import PoolFetcherWorker
+from workers.PoolsWorker import PoolsWorker
 
 
 class MainProcess(QMainWindow):
@@ -41,6 +42,8 @@ class MainProcess(QMainWindow):
         if self._pools_worker.isRunning():
             self._pools_worker.stop()
         else:
+            self._login_worker.stop()
+
             self._pools_worker.set_session(self.session)
 
             self.labelProgressStatus.setText("Cargando botes...")
@@ -48,6 +51,8 @@ class MainProcess(QMainWindow):
             self._pools_worker.start()
 
     def pools_worker_callback(self, pools):
+        self._pools_worker.stop()
+
         self.open_pools = dict(pools)
         self.comboBoxSplitfy.addItems(pools)
 
@@ -56,6 +61,8 @@ class MainProcess(QMainWindow):
         self.stop_progress_bar()
 
     def pool_fetcher_worker_callback(self, pool_info):
+        self._pool_fetcher_worker.stop()
+
         self.labelBoteValue.setText(pool_info["pool_name"])
         self.labelBoteValue.adjustSize()
 
@@ -105,9 +112,9 @@ class MainProcess(QMainWindow):
             url = self.open_pools.get(self.comboBoxSplitfy.currentText())
             self._download_results_worker.set_from_url(url)
 
-            fileDiag = QFileDialog()
+            file_diag = QFileDialog()
 
-            filename = QFileDialog.getSaveFileName(fileDiag, "Guardar archivo", self.comboBoxSplitfy.currentText())
+            filename = QFileDialog.getSaveFileName(file_diag, "Guardar archivo", self.comboBoxSplitfy.currentText())
 
             self._download_results_worker.set_filename(filename[0])
 
@@ -122,163 +129,6 @@ class MainProcess(QMainWindow):
     def stop_progress_bar(self):
         self.progressBar.setMinimum(0)
         self.progressBar.setMaximum(1)
-
-
-class LoginWorker(QtCore.QThread):
-    data_sent = QtCore.pyqtSignal(object)
-
-    def __init__(self, parent=None):
-        super(LoginWorker, self).__init__(parent)
-        self._stopped = True
-        self._mutex = QtCore.QMutex()
-
-        self._username = ""
-        self._password = ""
-        self._session = None
-
-    def stop(self):
-        self._mutex.lock()
-        self._stopped = True
-        self._mutex.unlock()
-
-    def run(self):
-        self._stopped = False
-        auth = {
-            'UserLogin[username]': self._username,
-            'UserLogin[password]': self._password
-
-        }
-        self._session.post('https://www.splitfy.com/login', data=auth)
-
-        self.data_sent.emit(self._session)
-
-    def set_username(self, username):
-        self._username = username
-
-    def set_password(self, password):
-        self._password = password
-
-    def set_session(self, session):
-        self._session = session
-
-
-class PoolsWorker(QtCore.QThread):
-    data_sent = QtCore.pyqtSignal(dict)
-
-    def __init__(self, parent=None):
-        super(PoolsWorker, self).__init__(parent)
-        self._stopped = True
-        self._mutex = QtCore.QMutex()
-
-        self._local_pools = {}
-        self._session = None
-
-    def stop(self):
-        self._mutex.lock()
-        self._stopped = True
-        self._mutex.unlock()
-
-    def run(self):
-        self._stopped = False
-
-        main_page = self._session.get('https://www.splitfy.com/profile')
-        organized_events = BeautifulSoup(main_page.text, "lxml").findAll('div', attrs={'id': 'managerEvents'})
-
-        for child in organized_events:
-            child_tag = child.findAll('a', attrs={'href': re.compile("/bote/*")})
-            for tag in child_tag:
-                self._local_pools[tag.text] = 'https://www.splitfy.com' + tag['href'].replace('/bote/p',
-                                                                                              '/bote/p/aportaciones')
-
-        self.data_sent.emit(self._local_pools)
-
-    def set_session(self, session):
-        self._session = session
-
-
-class PoolFetcherWorker(QtCore.QThread):
-    data_sent = QtCore.pyqtSignal(dict)
-
-    def __init__(self, parent=None):
-        super(PoolFetcherWorker, self).__init__(parent)
-        self._stopped = True
-        self._mutex = QtCore.QMutex()
-
-        self._session = None
-        self._pool_to_search = ""
-        self._open_pools = {}
-
-    def stop(self):
-        self._mutex.lock()
-        self._stopped = True
-        self._mutex.unlock()
-
-    def run(self):
-        self._stopped = False
-
-        pool_info = self._session.get(self._open_pools.get(self._pool_to_search))
-
-        soup = BeautifulSoup(pool_info.text, "lxml")
-
-        names = soup.findAll('td', attrs={'class': ''})
-        prices = soup.findAll('td', attrs={'style': 'font-weight:bolder;'})
-
-        money_total_amount = sum([float(price.text) for price in prices])
-        people_total_amount = len(names)
-
-        self.data_sent.emit({"pool_name": self._pool_to_search,
-                             "money_total_amount": money_total_amount,
-                             "people_total_amount": people_total_amount})
-
-    def set_session(self, session):
-        self._session = session
-
-    def set_pool_to_search(self, pool_to_search):
-        self._pool_to_search = pool_to_search
-
-    def set_open_pools(self, open_pools):
-        self._open_pools = open_pools
-
-
-class DownloadResultsWorker(QtCore.QThread):
-    data_sent = QtCore.pyqtSignal(str)
-
-    def __init__(self, parent=None):
-        super(DownloadResultsWorker, self).__init__(parent)
-        self._stopped = True
-        self._mutex = QtCore.QMutex()
-
-        self._session = None
-        self._from_url = ""
-        self._filename = ""
-
-    def stop(self):
-        self._mutex.lock()
-        self._stopped = True
-        self._mutex.unlock()
-
-    def run(self):
-        self._stopped = False
-
-        pool_results = self._session.get(
-            'https://www.splitfy.com/evento/downloadCollaboratorsCSV/id/' + re.search('[0-9]+', self._from_url).group(
-                0))
-        if self._filename != "":
-            with open(self._filename + ".csv", 'w') as file:
-                file.write(pool_results.text)
-                file.close()
-            self.data_sent.emit("Archivo descargado")
-        else:
-            self.data_sent.emit("El nombre del archivo no puede estar en blanco")
-
-    def set_from_url(self, from_url):
-        self._from_url = from_url
-
-    def set_session(self, session):
-        self._session = session
-
-    def set_filename(self, filename):
-        self._filename = filename
 
 
 if __name__ == "__main__":
