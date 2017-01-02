@@ -1,3 +1,7 @@
+discovery
+oauth2client
+apiclient
+httplib2
 bs4
 requests
 PyQt5

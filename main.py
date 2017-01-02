@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import QFileDialog
 from PyQt5.QtWidgets import QMainWindow
 
 from workers.DownloadResultsWorker import DownloadResultsWorker
+from workers.GoogleWorker import GoogleWorker
 from workers.LoginWorker import LoginWorker
 from workers.PoolFetcherWorker import PoolFetcherWorker
 from workers.PoolsWorker import PoolsWorker
@@ -15,6 +16,7 @@ class MainProcess(QMainWindow):
         QMainWindow.__init__(self)
         uic.loadUi("splitfy-core.ui", self)
         self.open_pools = {}
+        self.google_files = None
         self.session = requests.session()
 
         self._login_worker = LoginWorker()
@@ -29,12 +31,16 @@ class MainProcess(QMainWindow):
         self._download_results_worker = DownloadResultsWorker()
         self._download_results_worker.data_sent.connect(self.download_results_worker_callback)
 
+        self._google_worker = GoogleWorker()
+        self._google_worker.data_sent.connect(self.google_worker_callback)
+
         self.connections()
 
     def connections(self):
         self.pushButtonSend.clicked.connect(self.handle_login)
         self.comboBoxSplitfy.activated[str].connect(self.handle_pool_fetcher)
         self.pushButtonDownloadCSV.clicked.connect(self.handle_csv_download)
+        self.actionLoginGoogle.triggered.connect(self.handle_google_login)
 
     def login_worker_callback(self, session):
         self.session = session
@@ -74,7 +80,16 @@ class MainProcess(QMainWindow):
         self.stop_progress_bar()
 
     def download_results_worker_callback(self, text):
+        self.stop_progress_bar()
         self.labelProgressStatus.setText(text)
+
+    def google_worker_callback(self, google_results):
+        self._google_worker.stop()
+        self.stop_progress_bar()
+
+        self.google_files = google_results
+
+        [self.comboBoxGoogle.addItem(file['name']) for file in google_results]
 
     def handle_login(self):
         if self._login_worker.isRunning():
@@ -118,9 +133,19 @@ class MainProcess(QMainWindow):
 
             self._download_results_worker.set_filename(filename[0])
 
+            self.init_progress_bar()
             self.labelProgressStatus.setText("Descargando archivo...")
 
             self._download_results_worker.start()
+
+    def handle_google_login(self):
+        if self._google_worker.isRunning():
+            self._google_worker.stop()
+        else:
+            self.init_progress_bar()
+            self.labelProgressStatus.setText("Descargando datos de Google...")
+
+            self._google_worker.start()
 
     def init_progress_bar(self):
         self.progressBar.setMinimum(0)

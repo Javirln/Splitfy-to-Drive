@@ -291,8 +291,23 @@
      <height>22</height>
     </rect>
    </property>
+   <widget class="QMenu" name="menuGoogle">
+    <property name="title">
+     <string>Google</string>
+    </property>
+    <addaction name="actionLoginGoogle"/>
+   </widget>
+   <addaction name="menuGoogle"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionLoginGoogle">
+   <property name="text">
+    <string>Login</string>
+   </property>
+   <property name="toolTip">
+    <string>Google Login</string>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections/>
