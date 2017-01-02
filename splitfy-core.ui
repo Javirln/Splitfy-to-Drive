@@ -232,7 +232,7 @@
      <item>
       <layout class="QHBoxLayout" name="horizontalLayoutDownloadTransfer">
        <item>
-        <widget class="QPushButton" name="pushButtonDescargarExcel">
+        <widget class="QPushButton" name="pushButtonDownloadCSV">
          <property name="text">
           <string>Descargar</string>
          </property>
