@@ -239,7 +239,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="pushButtonEnviarAGoogle">
+        <widget class="QPushButton" name="pushButtonSendToGoogle">
          <property name="text">
           <string>Enviar a Google</string>
          </property>

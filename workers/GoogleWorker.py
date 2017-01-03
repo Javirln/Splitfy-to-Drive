@@ -17,6 +17,7 @@ except ImportError:
 
 class GoogleWorker(QtCore.QThread):
     data_sent = QtCore.pyqtSignal(object)
+    http_google_credentials = QtCore.pyqtSignal(object)
 
     SCOPES = {
         'https://www.googleapis.com/auth/spreadsheets',
@@ -32,6 +33,7 @@ class GoogleWorker(QtCore.QThread):
 
         self._local_results = []
         self._stored_credentials = None
+        self._http_google_credentials = None
 
     def stop(self):
         self._mutex.lock()
@@ -64,18 +66,21 @@ class GoogleWorker(QtCore.QThread):
         self._stopped = False
         self._local_results = []
         credentials = self.get_credentials()
-        http = credentials.authorize(httplib2.Http())
-        service = discovery.build('drive', 'v3', http=http)
 
-        results = service.files().list(fields="nextPageToken, files(id, name, mimeType)").execute()
+        self._http_google_credentials = credentials.authorize(httplib2.Http())
+        self.http_google_credentials.emit(self._http_google_credentials)
+
+        service = discovery.build('drive', 'v3', http=self._http_google_credentials)
+
+        results = service.files().list(pageSize=1000, fields="nextPageToken, files(id, name, mimeType)").execute()
         items = results.get('files', [])
         if not items:
             print('No files found.')
         else:
-            print('Files:')
+            #print('Files:')
             for item in items:
                 if item['mimeType'] == 'application/vnd.google-apps.spreadsheet':
-                    print('{0} ({1}) - {2}'.format(item['name'], item['id'], item['mimeType']))
+                    #print('{0} ({1}) - {2}'.format(item['name'], item['id'], item['mimeType']))
                     self._local_results.append({
                         'name': item['name'],
                         'id': item['id'],
