@@ -296,6 +296,7 @@
      <string>Google</string>
     </property>
     <addaction name="actionLoginGoogle"/>
+    <addaction name="actionDisconnectGoogle"/>
    </widget>
    <addaction name="menuGoogle"/>
   </widget>
@@ -306,6 +307,11 @@
    </property>
    <property name="toolTip">
     <string>Google Login</string>
+   </property>
+  </action>
+  <action name="actionDisconnectGoogle">
+   <property name="text">
+    <string>Disconnect</string>
    </property>
   </action>
  </widget>

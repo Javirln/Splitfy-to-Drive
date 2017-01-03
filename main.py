@@ -41,6 +41,8 @@ class MainProcess(QMainWindow):
         self.comboBoxSplitfy.activated[str].connect(self.handle_pool_fetcher)
         self.pushButtonDownloadCSV.clicked.connect(self.handle_csv_download)
         self.actionLoginGoogle.triggered.connect(self.handle_google_login)
+        self.actionDisconnectGoogle.triggered.connect(self.handle_disconnect_google)
+        self.actionDisconnectGoogle.setEnabled(False)
 
     def login_worker_callback(self, session):
         self.session = session
@@ -84,12 +86,16 @@ class MainProcess(QMainWindow):
         self.labelProgressStatus.setText(text)
 
     def google_worker_callback(self, google_results):
+        self.actionDisconnectGoogle.setEnabled(True)
+        self.actionLoginGoogle.setEnabled(False)
         self._google_worker.stop()
         self.stop_progress_bar()
 
         self.google_files = google_results
 
         [self.comboBoxGoogle.addItem(file['name']) for file in google_results]
+
+        self.labelProgressStatus.setText("Datos de Google descargados")
 
     def handle_login(self):
         if self._login_worker.isRunning():
@@ -146,6 +152,15 @@ class MainProcess(QMainWindow):
             self.labelProgressStatus.setText("Descargando datos de Google...")
 
             self._google_worker.start()
+
+    def handle_disconnect_google(self):
+        self._google_worker.remove_credentials()
+
+        self.google_files = None
+        self.comboBoxGoogle.clear()
+
+        self.actionDisconnectGoogle.setEnabled(False)
+        self.actionLoginGoogle.setEnabled(True)
 
     def init_progress_bar(self):
         self.progressBar.setMinimum(0)

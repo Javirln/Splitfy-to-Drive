@@ -31,6 +31,7 @@ class GoogleWorker(QtCore.QThread):
         self._mutex = QtCore.QMutex()
 
         self._local_results = []
+        self._stored_credentials = None
 
     def stop(self):
         self._mutex.lock()
@@ -45,21 +46,23 @@ class GoogleWorker(QtCore.QThread):
         credential_path = os.path.join(credential_dir,
                                        'splitfy-desk-credentials.json')
 
-        store = Storage(credential_path)
-        credentials = store.get()
+        self._stored_credentials = Storage(credential_path)
+        credentials = self._stored_credentials.get()
         if not credentials or credentials.invalid:
-            flow = client.flow_from_clientsecrets('../secrets/' + self.CLIENT_SECRET_FILE, self.SCOPES)
+            flow = client.flow_from_clientsecrets(os.getcwd() + '/secrets/' + self.CLIENT_SECRET_FILE,
+                                                  self.SCOPES,
+                                                  redirect_uri='urn:ietf:wg:oauth:2.0:oob')
             flow.user_agent = self.APPLICATION_NAME
             if flags:
-                credentials = tools.run_flow(flow, store, flags)
+                credentials = tools.run_flow(flow, self._stored_credentials, flags)
             else:  # Needed only for compatibility with Python 2.6
-                credentials = tools.run(flow, store)
+                credentials = tools.run(flow, self._stored_credentials)
             print('Storing credentials to ' + credential_path)
         return credentials
 
     def run(self):
         self._stopped = False
-
+        self._local_results = []
         credentials = self.get_credentials()
         http = credentials.authorize(httplib2.Http())
         service = discovery.build('drive', 'v3', http=http)
@@ -79,3 +82,6 @@ class GoogleWorker(QtCore.QThread):
                         'mimeType': item['mimeType']
                     })
             self.data_sent.emit(self._local_results)
+
+    def remove_credentials(self):
+        self._stored_credentials.delete()
