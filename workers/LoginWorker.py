@@ -9,9 +9,9 @@ class LoginWorker(QtCore.QThread):
         self._stopped = True
         self._mutex = QtCore.QMutex()
 
-        self._username = ""
-        self._password = ""
-        self._session = None
+        self.__username = ""
+        self.__password = ""
+        self.__session = None
 
     def stop(self):
         self._mutex.lock()
@@ -21,19 +21,19 @@ class LoginWorker(QtCore.QThread):
     def run(self):
         self._stopped = False
         auth = {
-            'UserLogin[username]': self._username,
-            'UserLogin[password]': self._password
+            'UserLogin[username]': self.__username,
+            'UserLogin[password]': self.__password
 
         }
-        self._session.post('https://www.splitfy.com/login', data=auth)
+        self.__session.post('https://www.splitfy.com/login', data=auth)
 
-        self.data_sent.emit(self._session)
+        self.data_sent.emit(self.__session)
 
     def set_username(self, username):
-        self._username = username
+        self.__username = username
 
     def set_password(self, password):
-        self._password = password
+        self.__password = password
 
     def set_session(self, session):
-        self._session = session
+        self.__session = session

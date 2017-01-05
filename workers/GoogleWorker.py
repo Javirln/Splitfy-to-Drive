@@ -31,9 +31,9 @@ class GoogleWorker(QtCore.QThread):
         self._stopped = True
         self._mutex = QtCore.QMutex()
 
-        self._local_results = []
-        self._stored_credentials = None
-        self._http_google_credentials = None
+        self.__local_results = []
+        self.__stored_credentials = None
+        self.__http_google_credentials = None
 
     def stop(self):
         self._mutex.lock()
@@ -48,29 +48,29 @@ class GoogleWorker(QtCore.QThread):
         credential_path = os.path.join(credential_dir,
                                        'splitfy-desk-credentials.json')
 
-        self._stored_credentials = Storage(credential_path)
-        credentials = self._stored_credentials.get()
+        self.__stored_credentials = Storage(credential_path)
+        credentials = self.__stored_credentials.get()
         if not credentials or credentials.invalid:
             flow = client.flow_from_clientsecrets(os.getcwd() + '/secrets/' + self.CLIENT_SECRET_FILE,
                                                   self.SCOPES,
                                                   redirect_uri='urn:ietf:wg:oauth:2.0:oob')
             flow.user_agent = self.APPLICATION_NAME
             if flags:
-                credentials = tools.run_flow(flow, self._stored_credentials, flags)
+                credentials = tools.run_flow(flow, self.__stored_credentials, flags)
             else:  # Needed only for compatibility with Python 2.6
-                credentials = tools.run(flow, self._stored_credentials)
+                credentials = tools.run(flow, self.__stored_credentials)
             print('Storing credentials to ' + credential_path)
         return credentials
 
     def run(self):
         self._stopped = False
-        self._local_results = []
+        self.__local_results = []
         credentials = self.get_credentials()
 
-        self._http_google_credentials = credentials.authorize(httplib2.Http())
-        self.http_google_credentials.emit(self._http_google_credentials)
+        self.__http_google_credentials = credentials.authorize(httplib2.Http())
+        self.http_google_credentials.emit(self.__http_google_credentials)
 
-        service = discovery.build('drive', 'v3', http=self._http_google_credentials)
+        service = discovery.build('drive', 'v3', http=self.__http_google_credentials)
 
         results = service.files().list(pageSize=1000, fields="nextPageToken, files(id, name, mimeType)").execute()
         items = results.get('files', [])
@@ -81,12 +81,12 @@ class GoogleWorker(QtCore.QThread):
             for item in items:
                 if item['mimeType'] == 'application/vnd.google-apps.spreadsheet':
                     #print('{0} ({1}) - {2}'.format(item['name'], item['id'], item['mimeType']))
-                    self._local_results.append({
+                    self.__local_results.append({
                         'name': item['name'],
                         'id': item['id'],
                         'mimeType': item['mimeType']
                     })
-            self.data_sent.emit(self._local_results)
+            self.data_sent.emit(self.__local_results)
 
     def remove_credentials(self):
-        self._stored_credentials.delete()
+        self.__stored_credentials.delete()
