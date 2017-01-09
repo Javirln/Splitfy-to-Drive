@@ -1,9 +1,7 @@
-googleapiclient
+google-api-python-client
 discovery
 oauth2client
-apiclient
 httplib2
 bs4
 requests
-PyQt5
-discovery
+lxml
